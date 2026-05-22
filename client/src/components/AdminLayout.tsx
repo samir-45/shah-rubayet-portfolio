@@ -22,6 +22,7 @@ import {
 import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
 import {
+  Award,
   ExternalLink,
   Hammer,
   Inbox,
@@ -33,24 +34,28 @@ import {
   Sparkles,
   SquareKanban,
   User,
+  Wrench,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
+import LoginForm from "./LoginForm";
 
 const menu = [
   { icon: LayoutDashboard, label: "Overview", path: "/admin" },
   { icon: User, label: "Profile & Hero", path: "/admin/profile" },
   { icon: SquareKanban, label: "Projects", path: "/admin/projects" },
+  { icon: Award, label: "Certifications", path: "/admin/certifications" },
   { icon: Sparkles, label: "Services", path: "/admin/services" },
   { icon: ListChecks, label: "Process", path: "/admin/process" },
-  { icon: Hammer, label: "Skills & Tools", path: "/admin/skills" },
+  { icon: Hammer, label: "Skills", path: "/admin/skills" },
+  { icon: Wrench, label: "Tools", path: "/admin/tools" },
   { icon: MessageSquareQuote, label: "Testimonials", path: "/admin/testimonials" },
   { icon: Link2, label: "Social Links", path: "/admin/social" },
   { icon: Inbox, label: "Messages", path: "/admin/messages" },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { loading, user } = useAuth();
+  const { loading, user, logout } = useAuth();
   const isMobile = useIsMobile();
   const [location, setLocation] = useLocation();
 
@@ -59,15 +64,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (!user) {
     return (
       <div className="flex items-center justify-center min-h-screen p-6">
-        <div className="flex flex-col items-center gap-6 max-w-md w-full text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">Sign in to manage your portfolio</h1>
-          <p className="text-sm text-muted-foreground">
-            Only the site owner can access this dashboard. Sign in with the account that owns this Manus project.
-          </p>
-          <Button onClick={() => (window.location.href = getLoginUrl())} size="lg" className="w-full">
-            Sign in
-          </Button>
-        </div>
+        <LoginForm />
       </div>
     );
   }
@@ -93,9 +90,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <SidebarProvider style={{ "--sidebar-width": "260px" } as React.CSSProperties}>
       <Sidebar collapsible="icon" className="border-r">
         <SidebarHeader className="h-16 px-4 flex items-center">
-          <div className="flex items-center gap-2">
-            <span className="size-2 rounded-full bg-primary" />
-            <span className="font-semibold tracking-tight truncate">Portfolio CMS</span>
+          <div className="flex items-center gap-2 pt-5">
+            <span className="font-semibold tracking-tight truncate">Portfolio Admin Dashboard</span>
           </div>
         </SidebarHeader>
         <SidebarContent>
@@ -146,14 +142,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuItem
                 className="cursor-pointer text-destructive focus:text-destructive"
-                onClick={() => {
-                  // logout via tRPC then send to home
-                  void fetch("/api/trpc/auth.logout?batch=1", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    credentials: "include",
-                    body: JSON.stringify({ "0": { json: null } }),
-                  }).finally(() => (window.location.href = "/"));
+                onClick={async () => {
+                  try {
+                    await logout();
+                  } finally {
+                    window.location.href = "/";
+                  }
                 }}
               >
                 <LogOut className="mr-2 size-4" />

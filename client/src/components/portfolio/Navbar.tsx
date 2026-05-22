@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
  */
 const links = [
   { href: "#work", label: "Work" },
+  { href: "#certifications", label: "Certs" },
   { href: "#about", label: "About" },
   { href: "#services", label: "Services" },
   { href: "#contact", label: "Contact" },
@@ -37,7 +38,9 @@ export function Navbar() {
         >
           <a href="#top" className="flex items-center gap-2.5 group">
             <span className="size-2 rounded-full bg-accent transition-transform group-hover:scale-125" />
-            <span className="font-display text-base tracking-[0.2em]">SHAH&nbsp;RUBAYET&nbsp;AHMED</span>
+            <span className="font-display text-sm sm:text-base tracking-[0.1em] sm:tracking-[0.2em] whitespace-nowrap">
+              SHAH&nbsp;RUBAYET<span className="hidden sm:inline">&nbsp;AHMED</span>
+            </span>
           </a>
 
           <ul className="hidden md:flex items-center gap-9 text-[12px] tracking-[0.18em] uppercase text-muted-foreground">
@@ -50,17 +53,19 @@ export function Navbar() {
             ))}
           </ul>
 
-          <a
-            href="#work"
-            className="hidden md:inline-flex magnetic-btn !py-2 !pl-5 !pr-2 !text-[11px]"
-          >
-            View Projects
-            <span className="arrow">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M5 12h14M13 5l7 7-7 7" />
-              </svg>
-            </span>
-          </a>
+          <div className="hidden md:block">
+            <a
+              href="#contact"
+              className="magnetic-btn !py-2 !pl-5 !pr-2 !text-[11px]"
+            >
+              Let's Talk
+              <span className="arrow">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M5 12h14M13 5l7 7-7 7" />
+                </svg>
+              </span>
+            </a>
+          </div>
 
           <button
             onClick={() => setOpen((v) => !v)}

@@ -1,7 +1,9 @@
 import { eq } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
+import { neon } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/neon-http";
 import { InsertUser, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
+import { hashPassword } from "./utils/auth";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -9,7 +11,10 @@ let _db: ReturnType<typeof drizzle> | null = null;
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      const client = neon(process.env.DATABASE_URL);
+      const dbInstance = drizzle(client);
+      _db = dbInstance;
+      await provisionAdmin(dbInstance);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
@@ -68,7 +73,8 @@ export async function upsertUser(user: InsertUser): Promise<void> {
       updateSet.lastSignedIn = new Date();
     }
 
-    await db.insert(users).values(values).onDuplicateKeyUpdate({
+    await db.insert(users).values(values).onConflictDoUpdate({
+      target: users.openId,
       set: updateSet,
     });
   } catch (error) {
@@ -87,6 +93,48 @@ export async function getUserByOpenId(openId: string) {
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
 
   return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getUserByUsername(username: string) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get user: database not available");
+    return undefined;
+  }
+
+  const result = await db.select().from(users).where(eq(users.username, username)).limit(1);
+
+  return result.length > 0 ? result[0] : undefined;
+}
+
+async function provisionAdmin(db: ReturnType<typeof drizzle>) {
+  try {
+    const existingAdmins = await db.select().from(users).where(eq(users.role, "admin")).limit(1);
+    if (existingAdmins.length === 0) {
+      const adminUsername = process.env.ADMIN_USERNAME || "admin";
+      const adminPassword = process.env.ADMIN_PASSWORD || "admin1234";
+      if (!process.env.ADMIN_USERNAME || !process.env.ADMIN_PASSWORD) {
+        console.warn(
+          "[Database] WARNING: ADMIN_USERNAME or ADMIN_PASSWORD not set in .env. Falling back to default credentials: admin / admin1234"
+        );
+      }
+      
+      const pwdHash = hashPassword(adminPassword);
+      
+      await db.insert(users).values({
+        openId: adminUsername,
+        username: adminUsername,
+        passwordHash: pwdHash,
+        name: "Admin",
+        email: "admin@example.com",
+        loginMethod: "credentials",
+        role: "admin",
+      });
+      console.log(`[Database] Auto-provisioned admin user: ${adminUsername}`);
+    }
+  } catch (error: any) {
+    console.warn("[Database] Failed to auto-provision admin user (likely tables do not exist yet):", error.message);
+  }
 }
 
 // TODO: add feature queries here as your schema grows.
@@ -115,6 +163,8 @@ import {
   socialLinks,
   testimonials,
   tools,
+  certifications,
+  InsertCertification,
 } from "../drizzle/schema";
 
 /* ----- siteSettings (singleton id=1) ----- */
@@ -307,4 +357,27 @@ export async function deleteContactMessage(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   await db.delete(contactMessages).where(eq(contactMessages.id, id));
+}
+
+/* ----- certifications ----- */
+export async function listCertifications(includeDrafts = false) {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db.select().from(certifications).orderBy(asc(certifications.sortOrder), asc(certifications.id));
+  return includeDrafts ? rows : rows.filter(r => r.published);
+}
+export async function insertCertification(data: InsertCertification) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.insert(certifications).values(data);
+}
+export async function updateCertification(id: number, patch: Partial<InsertCertification>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(certifications).set(patch).where(eq(certifications.id, id));
+}
+export async function deleteCertification(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(certifications).where(eq(certifications.id, id));
 }

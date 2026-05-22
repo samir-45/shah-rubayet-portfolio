@@ -1,5 +1,7 @@
 import type { Express } from "express";
 import { ENV } from "./env";
+import * as fs from "fs";
+import * as path from "path";
 
 export function registerStorageProxy(app: Express) {
   app.get("/manus-storage/*", async (req, res) => {
@@ -10,8 +12,20 @@ export function registerStorageProxy(app: Express) {
     }
 
     if (!ENV.forgeApiUrl || !ENV.forgeApiKey) {
-      res.status(500).send("Storage proxy not configured");
-      return;
+      // Local fallback mode: check client/public/manus-storage/${key} or dist/public/manus-storage/${key}
+      const clientPath = path.resolve(process.cwd(), "client", "public", "manus-storage", key);
+      const distPath = path.resolve(process.cwd(), "dist", "public", "manus-storage", key);
+
+      if (fs.existsSync(clientPath)) {
+        res.sendFile(clientPath);
+        return;
+      } else if (fs.existsSync(distPath)) {
+        res.sendFile(distPath);
+        return;
+      } else {
+        res.status(404).send("File not found in local storage fallback");
+        return;
+      }
     }
 
     try {
@@ -46,3 +60,4 @@ export function registerStorageProxy(app: Express) {
     }
   });
 }
+

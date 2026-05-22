@@ -9,7 +9,8 @@ import { Reveal } from "@/components/portfolio/Reveal";
 import { trpc } from "@/lib/trpc";
 import type { SiteSettings } from "@shared/types";
 import { Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Lenis from "lenis";
 import { toast } from "sonner";
 
 type HeroFeature = [string, string];
@@ -75,24 +76,24 @@ function Hero({ s }: { s: SiteSettings }) {
                     </div>
                   )}
                 </div>
-                <div className="glass absolute -left-4 md:-left-10 bottom-10 rounded-2xl px-4 py-3 flex items-center gap-3 shadow-2xl">
-                  <div className="size-9 rounded-full bg-accent/20 grid place-items-center text-accent">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <div className="glass absolute -left-2 sm:-left-4 md:-left-10 bottom-10 rounded-2xl px-3 py-2 sm:px-4 sm:py-3 flex items-center gap-2 sm:gap-3 shadow-2xl">
+                  <div className="size-7 sm:size-9 rounded-full bg-accent/20 grid place-items-center text-accent">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="sm:w-4 sm:h-4">
                       <path d="M12 20l9-16H3z" />
                     </svg>
                   </div>
                   <div>
-                    <div className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                    <div className="text-[8px] sm:text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
                       {s.heroAvailabilityLabel}
                     </div>
-                    <div className="text-sm">{s.heroAvailabilityValue}</div>
+                    <div className="text-xs sm:text-sm">{s.heroAvailabilityValue}</div>
                   </div>
                 </div>
-                <div className="glass absolute -right-3 md:-right-8 top-10 rounded-2xl px-4 py-3 shadow-2xl">
-                  <div className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                <div className="glass absolute -right-2 sm:-right-3 md:-right-8 top-10 rounded-2xl px-3 py-2 sm:px-4 sm:py-3 shadow-2xl">
+                  <div className="text-[8px] sm:text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
                     {s.heroLocationLabel}
                   </div>
-                  <div className="text-sm font-medium">{s.heroLocationValue}</div>
+                  <div className="text-xs sm:text-sm font-medium">{s.heroLocationValue}</div>
                 </div>
               </div>
             </Reveal>
@@ -101,7 +102,7 @@ function Hero({ s }: { s: SiteSettings }) {
 
         {features.length > 0 ? (
           <Reveal delay={400}>
-            <div className="mt-20 md:mt-28 hairline pt-8 grid grid-cols-2 md:grid-cols-4 gap-8">
+            <div className="mt-20 md:mt-28 hairline pt-8 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
               {features.map(([t, d]) => (
                 <div key={t}>
                   <div className="text-[11px] uppercase tracking-[0.22em] font-medium">{t}</div>
@@ -137,7 +138,7 @@ function Tools() {
           </div>
         </Reveal>
         <Reveal delay={150}>
-          <div className="mt-14 grid grid-cols-3 md:grid-cols-5 gap-px bg-border border border-border rounded-2xl overflow-hidden">
+          <div className="mt-14 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-px bg-border border border-border rounded-2xl overflow-hidden">
             {tools.map(t => (
               <div
                 key={t.id}
@@ -145,12 +146,18 @@ function Tools() {
                 title={t.name}
               >
                 <img
-                  src={`https://cdn.simpleicons.org/${t.slug}/ffffff`}
+                  src={t.imageUrl || (t.slug ? `https://cdn.simpleicons.org/${t.slug}/ffffff` : "")}
                   alt={`${t.name} logo`}
                   width={36}
                   height={36}
                   loading="lazy"
-                  className="size-9 opacity-70 group-hover:opacity-100 transition-opacity"
+                  className="size-9 opacity-70 group-hover:opacity-100 transition-opacity object-contain"
+                  onError={e => {
+                    const img = e.target as HTMLImageElement;
+                    if (t.slug && img.src && !img.src.endsWith(`/icons/${t.slug}.svg`)) {
+                      img.src = `/icons/${t.slug}.svg`;
+                    }
+                  }}
                 />
                 <div className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground group-hover:text-foreground transition-colors">
                   {t.name}
@@ -189,7 +196,7 @@ function About({ s }: { s: SiteSettings }) {
           </Reveal>
           {stats.length > 0 ? (
             <Reveal delay={250}>
-              <div className="mt-10 grid grid-cols-3 gap-6 hairline pt-8">
+              <div className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8 hairline pt-8">
                 {stats.map(stat => (
                   <div key={stat.label}>
                     <div className="font-display text-4xl md:text-5xl">{stat.value}</div>
@@ -307,7 +314,7 @@ function Work() {
                       </span>
                     </div>
                     <div className="absolute bottom-6 left-6 right-6">
-                      <h3 className="font-display text-3xl md:text-5xl leading-none">{p.title}</h3>
+                      <h3 className="font-display text-2xl sm:text-3xl md:text-5xl leading-none">{p.title}</h3>
                       <p className="mt-3 max-w-md text-[13px] text-muted-foreground">{p.description}</p>
                       {tags.length > 0 ? (
                         <div className="mt-4 flex flex-wrap gap-2">
@@ -332,6 +339,93 @@ function Work() {
     </section>
   );
 }
+
+function Certifications() {
+  const { data: certs = [] } = trpc.portfolio.listCertifications.useQuery();
+  if (!certs.length) return null;
+  return (
+    <section id="certifications" className="py-28 md:py-36 border-t border-border relative overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-accent/5 blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 rounded-full bg-olive/5 blur-3xl" />
+      </div>
+      <div className="container-editorial relative">
+        <Reveal>
+          <div className="text-[11px] tracking-[0.32em] uppercase text-muted-foreground">(Certifications)</div>
+          <h2 className="mt-5 font-display text-5xl md:text-7xl leading-[0.95] max-w-3xl">
+            Credentials &amp; achievements
+          </h2>
+        </Reveal>
+        <div className="mt-16 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {certs.map((c, i) => (
+            <Reveal key={c.id} delay={i * 80}>
+              <div className="group relative glass rounded-3xl p-7 h-full flex flex-col gap-5 border border-border/50 hover:border-accent/40 transition-all duration-500 hover:shadow-[0_0_40px_-8px_oklch(0.78_0.14_295/0.15)]">
+                {/* Top row: badge + title */}
+                <div className="flex items-start gap-4">
+                  {c.imageUrl ? (
+                    <div className="shrink-0 size-14 rounded-2xl border border-border bg-background/60 grid place-items-center overflow-hidden p-1">
+                      <img
+                        src={c.imageUrl}
+                        alt={`${c.issuer} badge`}
+                        className="w-full h-full object-contain"
+                        loading="lazy"
+                      />
+                    </div>
+                  ) : (
+                    <div className="shrink-0 size-14 rounded-2xl border border-border bg-gradient-to-br from-accent/20 to-olive/20 grid place-items-center">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-accent">
+                        <path d="M12 15l-2 5-6-6 5-2m5 2l2 5 6-6-5-2" />
+                        <circle cx="12" cy="8" r="5" />
+                      </svg>
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-display text-lg leading-snug group-hover:text-accent transition-colors duration-300">
+                      {c.title}
+                    </h3>
+                    <div className="mt-1 text-[11px] tracking-[0.22em] uppercase text-muted-foreground">
+                      {c.issuer}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Description */}
+                {c.description ? (
+                  <p className="text-[13px] text-muted-foreground leading-relaxed flex-1">{c.description}</p>
+                ) : <div className="flex-1" />}
+
+                {/* Footer: date + credential link */}
+                <div className="flex items-center justify-between pt-4 border-t border-border/50">
+                  {c.issueDate ? (
+                    <span className="text-[11px] tracking-[0.2em] uppercase text-muted-foreground">
+                      {c.issueDate}
+                    </span>
+                  ) : <span />}
+                  {c.credentialUrl ? (
+                    <a
+                      href={c.credentialUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-[11px] tracking-[0.18em] uppercase text-accent hover:text-foreground transition-colors"
+                    >
+                      Verify
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M7 17L17 7M9 7h8v8" />
+                      </svg>
+                    </a>
+                  ) : c.credentialId ? (
+                    <span className="text-[10px] font-mono text-muted-foreground/60">ID: {c.credentialId}</span>
+                  ) : null}
+                </div>
+              </div>
+            </Reveal>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 
 function Process() {
   const { data: steps = [] } = trpc.portfolio.listProcessSteps.useQuery();
@@ -629,7 +723,7 @@ function Footer({ s }: { s: SiteSettings }) {
       <div className="container-editorial flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <a href="#top" className="flex items-center gap-2.5">
           <span className="size-2 rounded-full bg-accent" />
-          <span className="font-display text-base tracking-[0.2em]">{s.brandName}</span>
+          <span className="font-display text-base tracking-[0.1em] sm:tracking-[0.2em]">{s.brandName}</span>
         </a>
         <div className="flex flex-wrap gap-6 text-[11px] tracking-[0.22em] uppercase text-muted-foreground">
           <a href="#work" className="hover:text-foreground">Work</a>
@@ -652,6 +746,55 @@ function Footer({ s }: { s: SiteSettings }) {
 
 export default function Home() {
   const { data: settings, isLoading } = trpc.portfolio.getSiteSettings.useQuery();
+
+  useEffect(() => {
+    if (isLoading || !settings) return;
+    const lenis = new Lenis({
+      duration: 1.2,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // easeOutExpo
+      orientation: "vertical",
+      gestureOrientation: "vertical",
+      smoothWheel: true,
+      wheelMultiplier: 1,
+      touchMultiplier: 2,
+      infinite: false,
+    });
+
+    let rafId = 0;
+    function raf(time: number) {
+      lenis.raf(time);
+      rafId = requestAnimationFrame(raf);
+    }
+
+    rafId = requestAnimationFrame(raf);
+
+    // Intercept anchor link clicks to animate them smoothly via Lenis
+    const handleAnchorClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const anchor = target.closest("a");
+      if (!anchor) return;
+
+      const href = anchor.getAttribute("href");
+      if (href && href.startsWith("#")) {
+        e.preventDefault();
+        const targetId = href.substring(1);
+        const targetElement = document.getElementById(targetId || "top");
+        if (targetElement) {
+          lenis.scrollTo(targetElement);
+        } else if (href === "#") {
+          lenis.scrollTo(0);
+        }
+      }
+    };
+
+    document.addEventListener("click", handleAnchorClick);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      document.removeEventListener("click", handleAnchorClick);
+      lenis.destroy();
+    };
+  }, [isLoading, settings]);
 
   if (isLoading) {
     return (
@@ -683,6 +826,7 @@ export default function Home() {
       <About s={settings} />
       <Services />
       <Work />
+      <Certifications />
       <Process />
       <Testimonials />
       <Skills />

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 /**
  * Design system: dark editorial portfolio (purple-toned)
@@ -9,7 +10,7 @@ export function Cursor() {
   const dotRef = useRef<HTMLDivElement>(null);
   const ringRef = useRef<HTMLDivElement>(null);
   const [enabled, setEnabled] = useState(false);
-  const [hover, setHover] = useState(false);
+  const hoverRef = useRef(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -22,26 +23,31 @@ export function Cursor() {
       y = window.innerHeight / 2;
     let rx = x,
       ry = y;
+    let scale = 1;
+
     const onMove = (e: MouseEvent) => {
       x = e.clientX;
       y = e.clientY;
     };
     const onOver = (e: MouseEvent) => {
       const t = e.target as HTMLElement;
-      setHover(!!t.closest("a, button, .project-card, [data-cursor='hover']"));
+      hoverRef.current = !!(t && t.closest("a, button, .project-card, [data-cursor='hover']"));
     };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseover", onOver);
     let raf = 0;
     const tick = () => {
-      rx += (x - rx) * 0.18;
-      ry += (y - ry) * 0.18;
+      rx += (x - rx) * 0.35;
+      ry += (y - ry) * 0.35;
+      
+      const targetScale = hoverRef.current ? 1.6 : 1;
+      scale += (targetScale - scale) * 0.2;
+
       if (dotRef.current)
         dotRef.current.style.transform = `translate3d(${x - 3}px, ${y - 3}px, 0)`;
-      if (ringRef.current)
-        ringRef.current.style.transform = `translate3d(${rx - 18}px, ${ry - 18}px, 0) scale(${
-          hover ? 1.6 : 1
-        })`;
+      if (ringRef.current) {
+        ringRef.current.style.transform = `translate3d(${rx - 18}px, ${ry - 18}px, 0) scale(${scale})`;
+      }
       raf = requestAnimationFrame(tick);
     };
     tick();
@@ -50,21 +56,21 @@ export function Cursor() {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseover", onOver);
     };
-  }, [enabled, hover]);
+  }, [enabled]);
 
   if (!enabled) return null;
-  return (
+
+  return createPortal(
     <>
       <div
         ref={ringRef}
-        className="pointer-events-none fixed top-0 left-0 z-[70] size-9 rounded-full border border-accent/60 mix-blend-difference transition-[transform,opacity] duration-200"
-        style={{ transform: "translate3d(-100px,-100px,0)" }}
+        className="pointer-events-none fixed top-0 left-0 z-[70] size-9 rounded-full border border-accent/60 mix-blend-difference"
       />
       <div
         ref={dotRef}
         className="pointer-events-none fixed top-0 left-0 z-[70] size-1.5 rounded-full bg-accent"
-        style={{ transform: "translate3d(-100px,-100px,0)" }}
       />
-    </>
+    </>,
+    document.body
   );
 }

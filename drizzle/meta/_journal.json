@@ -1,12 +1,33 @@
 {
   "version": "7",
-  "dialect": "mysql",
+  "dialect": "postgresql",
   "entries": [
     {
       "idx": 0,
-      "version": "5",
-      "when": 1779377015239,
-      "tag": "0000_concerned_rafael_vega",
+      "version": "7",
+      "when": 1779381563005,
+      "tag": "0000_nostalgic_omega_flight",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1779442691169,
+      "tag": "0001_warm_hairball",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1779444177800,
+      "tag": "0002_nebulous_dakota_north",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1779447249979,
+      "tag": "0003_majestic_ravenous",
       "breakpoints": true
     }
   ]
