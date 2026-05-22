@@ -11,6 +11,7 @@ import AdminSkills from "@/pages/admin/Skills";
 import AdminSocial from "@/pages/admin/Social";
 import AdminTestimonials from "@/pages/admin/Testimonials";
 import AdminTools from "@/pages/admin/Tools";
+import AdminCertifications from "@/pages/admin/Certifications";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -23,6 +24,7 @@ function Router() {
       <Route path="/admin" component={AdminOverview} />
       <Route path="/admin/profile" component={AdminProfile} />
       <Route path="/admin/projects" component={AdminProjects} />
+      <Route path="/admin/certifications" component={AdminCertifications} />
       <Route path="/admin/services" component={AdminServices} />
       <Route path="/admin/process" component={AdminProcess} />
       <Route path="/admin/skills" component={AdminSkills} />

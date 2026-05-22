@@ -1,7 +1,14 @@
 // Seed the portfolio database with current site content.
 // Idempotent: only inserts if a table is empty (or for siteSettings, only if id=1 missing).
 import "dotenv/config";
-import mysql from "mysql2/promise";
+import { neon } from "@neondatabase/serverless";
+import crypto from "crypto";
+
+function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString("hex");
+  const hash = crypto.pbkdf2Sync(password, salt, 1000, 64, "sha512").toString("hex");
+  return `${salt}:${hash}`;
+}
 
 const portrait = "/manus-storage/portrait_00422057.jpg";
 const projectEato = "/manus-storage/project-eato_5f80870e.jpg";
@@ -16,29 +23,33 @@ if (!url) {
   console.error("DATABASE_URL missing");
   process.exit(1);
 }
-const c = await mysql.createConnection(url);
+const sql = neon(url);
 
 async function isEmpty(table) {
-  const [r] = await c.query(`SELECT COUNT(*) AS n FROM \`${table}\``);
-  return r[0].n === 0;
+  const rows = await sql.query(`SELECT COUNT(*)::int AS n FROM "${table}"`);
+  return rows[0].n === 0;
 }
 
 // --- siteSettings (singleton row id=1) ---
-const [settingsRows] = await c.query("SELECT id FROM siteSettings WHERE id = 1");
+const settingsRows = await sql.query('SELECT id FROM "siteSettings" WHERE id = 1');
 if (settingsRows.length === 0) {
-  await c.query(
-    `INSERT INTO siteSettings (id, brandName, ownerName, location,
-      heroEyebrow, heroHeadline, heroDescription, heroPortraitUrl,
-      heroAvailabilityLabel, heroAvailabilityValue, heroLocationLabel, heroLocationValue,
-      cvUrl, heroFeatures,
-      aboutEyebrow, aboutHeadline, aboutBody, aboutStats,
-      servicesHeadline, servicesIntro, workHeadline,
-      processHeadline, processIntro, testimonialsHeadline,
-      skillsHeadline, toolsHeadline, toolsIntro,
-      contactHeadline, contactBody,
-      contactEmail, contactPhone, contactLinkedinLabel, contactLinkedinUrl,
-      footerCopyright)
-     VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  await sql.query(
+    `INSERT INTO "siteSettings" (
+      id, "brandName", "ownerName", location,
+      "heroEyebrow", "heroHeadline", "heroDescription", "heroPortraitUrl",
+      "heroAvailabilityLabel", "heroAvailabilityValue", "heroLocationLabel", "heroLocationValue",
+      "cvUrl", "heroFeatures",
+      "aboutEyebrow", "aboutHeadline", "aboutBody", "aboutStats",
+      "servicesHeadline", "servicesIntro", "workHeadline",
+      "processHeadline", "processIntro", "testimonialsHeadline",
+      "skillsHeadline", "toolsHeadline", "toolsIntro",
+      "contactHeadline", "contactBody",
+      "contactEmail", "contactPhone", "contactLinkedinLabel", "contactLinkedinUrl",
+      "footerCopyright"
+    )
+     VALUES (
+      1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33
+     )`,
     [
       "SHAH RUBAYET",
       "Shah Rubayet Ahmed",
@@ -101,8 +112,8 @@ if (await isEmpty("services")) {
   ];
   for (let i = 0; i < services.length; i++) {
     const [n, t, d] = services[i];
-    await c.query(
-      "INSERT INTO services (number, title, description, sortOrder, published) VALUES (?, ?, ?, ?, 1)",
+    await sql.query(
+      `INSERT INTO "services" (number, title, description, "sortOrder", published) VALUES ($1, $2, $3, $4, true)`,
       [n, t, d, i],
     );
   }
@@ -111,7 +122,7 @@ if (await isEmpty("services")) {
 
 // --- projects ---
 if (await isEmpty("projects")) {
-  const projects = [
+  const projectsData = [
     {
       img: projectEato,
       cat: "Mobile · Food Delivery",
@@ -158,14 +169,14 @@ if (await isEmpty("projects")) {
       span: "md:col-span-3 md:row-span-1",
     },
   ];
-  for (let i = 0; i < projects.length; i++) {
-    const p = projects[i];
-    await c.query(
-      "INSERT INTO projects (title, category, description, imageUrl, href, tagsJson, spanClass, sortOrder, published) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)",
+  for (let i = 0; i < projectsData.length; i++) {
+    const p = projectsData[i];
+    await sql.query(
+      `INSERT INTO "projects" (title, category, description, "imageUrl", href, "tagsJson", "spanClass", "sortOrder", published) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true)`,
       [p.title, p.cat, p.desc, p.img, p.href, JSON.stringify(p.tags), p.span, i],
     );
   }
-  console.log("projects: inserted", projects.length);
+  console.log("projects: inserted", projectsData.length);
 }
 
 // --- processSteps ---
@@ -180,8 +191,8 @@ if (await isEmpty("processSteps")) {
   ];
   for (let i = 0; i < steps.length; i++) {
     const [n, t, d] = steps[i];
-    await c.query(
-      "INSERT INTO processSteps (number, title, description, sortOrder, published) VALUES (?, ?, ?, ?, 1)",
+    await sql.query(
+      `INSERT INTO "processSteps" (number, title, description, "sortOrder", published) VALUES ($1, $2, $3, $4, true)`,
       [n, t, d, i],
     );
   }
@@ -190,7 +201,7 @@ if (await isEmpty("processSteps")) {
 
 // --- skills ---
 if (await isEmpty("skills")) {
-  const skills = [
+  const skillsList = [
     ["UI Design", 96],
     ["UX Research", 88],
     ["Figma", 98],
@@ -200,14 +211,14 @@ if (await isEmpty("skills")) {
     ["Webflow", 78],
     ["Branding", 86],
   ];
-  for (let i = 0; i < skills.length; i++) {
-    const [n, v] = skills[i];
-    await c.query(
-      "INSERT INTO skills (name, value, sortOrder, published) VALUES (?, ?, ?, 1)",
+  for (let i = 0; i < skillsList.length; i++) {
+    const [n, v] = skillsList[i];
+    await sql.query(
+      `INSERT INTO "skills" (name, value, "sortOrder", published) VALUES ($1, $2, $3, true)`,
       [n, v, i],
     );
   }
-  console.log("skills: inserted", skills.length);
+  console.log("skills: inserted", skillsList.length);
 }
 
 // --- testimonials ---
@@ -219,8 +230,8 @@ if (await isEmpty("testimonials")) {
   ];
   for (let i = 0; i < t.length; i++) {
     const [name, role, quote, rating] = t[i];
-    await c.query(
-      "INSERT INTO testimonials (name, role, quote, rating, sortOrder, published) VALUES (?, ?, ?, ?, ?, 1)",
+    await sql.query(
+      `INSERT INTO "testimonials" (name, role, quote, rating, "sortOrder", published) VALUES ($1, $2, $3, $4, $5, true)`,
       [name, role, quote, rating, i],
     );
   }
@@ -229,21 +240,21 @@ if (await isEmpty("testimonials")) {
 
 // --- tools ---
 if (await isEmpty("tools")) {
-  const tools = [
+  const toolsList = [
     ["Figma", "figma"],
     ["Framer", "framer"],
     ["Adobe XD", "adobexd"],
     ["Photoshop", "adobephotoshop"],
     ["Illustrator", "adobeillustrator"],
   ];
-  for (let i = 0; i < tools.length; i++) {
-    const [n, s] = tools[i];
-    await c.query(
-      "INSERT INTO tools (name, slug, sortOrder, published) VALUES (?, ?, ?, 1)",
+  for (let i = 0; i < toolsList.length; i++) {
+    const [n, s] = toolsList[i];
+    await sql.query(
+      `INSERT INTO "tools" (name, slug, "sortOrder", published) VALUES ($1, $2, $3, true)`,
       [n, s, i],
     );
   }
-  console.log("tools: inserted", tools.length);
+  console.log("tools: inserted", toolsList.length);
 }
 
 // --- socialLinks ---
@@ -256,13 +267,33 @@ if (await isEmpty("socialLinks")) {
   ];
   for (let i = 0; i < links.length; i++) {
     const [n, u] = links[i];
-    await c.query(
-      "INSERT INTO socialLinks (name, url, sortOrder, published) VALUES (?, ?, ?, 1)",
+    await sql.query(
+      `INSERT INTO "socialLinks" (name, url, "sortOrder", published) VALUES ($1, $2, $3, true)`,
       [n, u, i],
     );
   }
   console.log("socialLinks: inserted", links.length);
 }
 
-await c.end();
+// --- users ---
+if (await isEmpty("users")) {
+  const adminUsername = process.env.ADMIN_USERNAME || "admin";
+  const adminPassword = process.env.ADMIN_PASSWORD || "admin1234";
+  const pwdHash = hashPassword(adminPassword);
+  
+  await sql.query(
+    `INSERT INTO "users" ("openId", "username", "passwordHash", "name", "email", "loginMethod", "role") VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [
+      adminUsername,
+      adminUsername,
+      pwdHash,
+      "Admin",
+      "admin@example.com",
+      "credentials",
+      "admin"
+    ]
+  );
+  console.log(`users: inserted default admin user (${adminUsername})`);
+}
+
 console.log("Seed complete.");

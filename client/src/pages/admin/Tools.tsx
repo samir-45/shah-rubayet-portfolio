@@ -19,30 +19,38 @@ export default function ToolsAdmin() {
     <AdminLayout>
       <SimpleListEditor
         title="Tools"
-        description="Tools strip on the public site. Slug uses simpleicons.org (e.g. figma, framer, adobexd)."
+        description="Tools strip on the public site. Upload a custom icon or use simpleicons.org slug (e.g. figma, framer, adobexd)."
         items={list.data}
-        defaults={{ name: "", slug: "" }}
+        defaults={{ name: "", slug: "", imageUrl: "" }}
         fields={[
           { key: "name", label: "Display name", type: "text", placeholder: "Figma" },
           {
             key: "slug",
-            label: "Simple Icons slug",
+            label: "Simple Icons slug (Optional)",
             type: "text",
             placeholder: "figma, framer, adobexd, adobephotoshop, adobeillustrator",
           },
+          { key: "imageUrl", label: "Custom Icon/Image (Optional)", type: "image" },
         ]}
         renderRow={t => (
           <div className="flex items-center gap-3">
             <img
-              src={`https://cdn.simpleicons.org/${t.slug}/ffffff`}
+              src={t.imageUrl || (t.slug ? `https://cdn.simpleicons.org/${t.slug}/ffffff` : "")}
               alt=""
-              className="size-7 opacity-80"
-              onError={e => ((e.target as HTMLImageElement).style.opacity = "0.2")}
+              className="size-7 opacity-80 object-contain"
+              onError={e => {
+                const img = e.target as HTMLImageElement;
+                if (t.slug && img.src && !img.src.endsWith(`/icons/${t.slug}.svg`)) {
+                  img.src = `/icons/${t.slug}.svg`;
+                } else {
+                  img.style.opacity = "0.2";
+                }
+              }}
             />
             <div>
               <div className="text-sm font-medium">{t.name}</div>
               <div className="text-xs text-muted-foreground">
-                slug: {t.slug} · order {t.sortOrder} · {t.published ? "Published" : "Draft"}
+                slug: {t.slug || "none"} · order {t.sortOrder} · {t.published ? "Published" : "Draft"}
               </div>
             </div>
           </div>

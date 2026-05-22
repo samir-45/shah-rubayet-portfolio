@@ -15,11 +15,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import ImageUploader from "./ImageUploader";
 
 export type FieldDef = {
   key: string;
   label: string;
-  type: "text" | "textarea" | "number";
+  type: "text" | "textarea" | "number" | "image";
   placeholder?: string;
   rows?: number;
 };
@@ -106,8 +107,14 @@ export default function SimpleListEditor<T extends ListItem>({
             <div className="grid grid-cols-1 gap-4">
               {fields.map(fd => (
                 <div key={fd.key} className="flex flex-col gap-1.5">
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">{fd.label}</Label>
-                  {fd.type === "textarea" ? (
+                   <Label className="text-xs uppercase tracking-wider text-muted-foreground">{fd.label}</Label>
+                  {fd.type === "image" ? (
+                    <ImageUploader
+                      value={form[fd.key] ?? null}
+                      onChange={url => setForm((f: any) => ({ ...f, [fd.key]: url }))}
+                      folder={title.toLowerCase()}
+                    />
+                  ) : fd.type === "textarea" ? (
                     <Textarea
                       rows={fd.rows ?? 3}
                       placeholder={fd.placeholder}

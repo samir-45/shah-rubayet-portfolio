@@ -46,7 +46,8 @@ const testimonialInput = z.object({
 
 const toolInput = z.object({
   name: z.string().min(1).max(120),
-  slug: z.string().min(1).max(120),
+  slug: z.string().max(120).optional().nullable(),
+  imageUrl: z.string().optional().nullable(),
   sortOrder: z.number().int().min(0).default(0),
   published: z.boolean().default(true),
 });
@@ -57,6 +58,19 @@ const socialLinkInput = z.object({
   sortOrder: z.number().int().min(0).default(0),
   published: z.boolean().default(true),
 });
+
+const certificationInput = z.object({
+  title: z.string().min(1).max(200),
+  issuer: z.string().min(1).max(200),
+  issueDate: z.string().max(100).optional().nullable(),
+  description: z.string().optional().nullable(),
+  credentialId: z.string().max(200).optional().nullable(),
+  credentialUrl: z.string().optional().nullable(),
+  imageUrl: z.string().optional().nullable(),
+  sortOrder: z.number().int().min(0).default(0),
+  published: z.boolean().default(true),
+});
+
 
 const heroFeatureSchema = z.tuple([z.string(), z.string()]);
 const aboutStatSchema = z.object({ value: z.string(), label: z.string() });
@@ -144,6 +158,11 @@ export const portfolioRouter = router({
   listSocialLinks: publicProcedure
     .input(z.object({ includeDrafts: z.boolean().default(false) }).optional())
     .query(({ input }) => db.listSocialLinks(input?.includeDrafts ?? false)),
+
+  listCertifications: publicProcedure
+    .input(z.object({ includeDrafts: z.boolean().default(false) }).optional())
+    .query(({ input }) => db.listCertifications(input?.includeDrafts ?? false)),
+
 
   // Public: contact form submission
   submitMessage: publicProcedure
@@ -301,6 +320,24 @@ export const portfolioRouter = router({
     await db.deleteSocialLink(input.id);
     return { success: true } as const;
   }),
+
+  /* certifications */
+  createCertification: adminProcedure.input(certificationInput).mutation(async ({ input }) => {
+    await db.insertCertification(input as any);
+    return { success: true } as const;
+  }),
+  updateCertification: adminProcedure
+    .input(idInput.merge(certificationInput.partial()))
+    .mutation(async ({ input }) => {
+      const { id, ...patch } = input;
+      await db.updateCertification(id, patch as any);
+      return { success: true } as const;
+    }),
+  deleteCertification: adminProcedure.input(idInput).mutation(async ({ input }) => {
+    await db.deleteCertification(input.id);
+    return { success: true } as const;
+  }),
+
 
   /* contact messages */
   listMessages: adminProcedure.query(() => db.listContactMessages()),

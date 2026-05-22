@@ -3,15 +3,38 @@
 // Downloads return /manus-storage/{key} paths served via 307 redirect.
 
 import { ENV } from "./_core/env";
+import * as fs from "fs/promises";
+import * as path from "path";
+import { v2 as cloudinary } from "cloudinary";
+
+function getCloudinaryConfig() {
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+  const apiKey = process.env.CLOUDINARY_API_KEY;
+  const apiSecret = process.env.CLOUDINARY_API_SECRET;
+
+  if (!cloudName || !apiKey || !apiSecret) {
+    return null;
+  }
+
+  return { cloudName, apiKey, apiSecret };
+}
+
+const cloudinaryConfig = getCloudinaryConfig();
+if (cloudinaryConfig) {
+  cloudinary.config({
+    cloud_name: cloudinaryConfig.cloudName,
+    api_key: cloudinaryConfig.apiKey,
+    api_secret: cloudinaryConfig.apiSecret,
+    secure: true,
+  });
+}
 
 function getForgeConfig() {
   const forgeUrl = ENV.forgeApiUrl;
   const forgeKey = ENV.forgeApiKey;
 
   if (!forgeUrl || !forgeKey) {
-    throw new Error(
-      "Storage config missing: set BUILT_IN_FORGE_API_URL and BUILT_IN_FORGE_API_KEY",
-    );
+    return null;
   }
 
   return { forgeUrl: forgeUrl.replace(/\/+$/, ""), forgeKey };
@@ -33,8 +56,63 @@ export async function storagePut(
   data: Buffer | Uint8Array | string,
   contentType = "application/octet-stream",
 ): Promise<{ key: string; url: string }> {
-  const { forgeUrl, forgeKey } = getForgeConfig();
+  const cConfig = getCloudinaryConfig();
+  if (cConfig) {
+    let base64: string;
+    if (Buffer.isBuffer(data)) {
+      base64 = data.toString("base64");
+    } else if (typeof data === "string") {
+      base64 = Buffer.from(data).toString("base64");
+    } else {
+      base64 = Buffer.from(data as Uint8Array).toString("base64");
+    }
+    const dataUri = `data:${contentType};base64,${base64}`;
+    
+    const key = appendHashSuffix(normalizeKey(relKey));
+    const ext = path.extname(key);
+    const publicId = path.basename(key, ext);
+    const folder = path.dirname(key) !== "." ? path.dirname(key) : "portfolio";
+
+    try {
+      const result = await cloudinary.uploader.upload(dataUri, {
+        public_id: publicId,
+        folder: folder,
+        resource_type: "auto",
+      });
+      return { key: result.public_id, url: result.secure_url };
+    } catch (error) {
+      console.error("[Storage] Cloudinary upload failed, falling back to local:", error);
+    }
+  }
+
+  const config = getForgeConfig();
   const key = appendHashSuffix(normalizeKey(relKey));
+
+  if (!config) {
+    // Local fallback mode: save directly to client/public/manus-storage/
+    const targetDir = path.resolve(process.cwd(), "client", "public", "manus-storage");
+    const targetPath = path.join(targetDir, key);
+
+    // Ensure the parent directory exists
+    await fs.mkdir(path.dirname(targetPath), { recursive: true });
+
+    // Write file content
+    await fs.writeFile(targetPath, data);
+
+    // Also write to dist/public/manus-storage if it exists (for immediate access in production build)
+    const distDir = path.resolve(process.cwd(), "dist", "public", "manus-storage");
+    const distPath = path.join(distDir, key);
+    try {
+      await fs.mkdir(path.dirname(distPath), { recursive: true });
+      await fs.writeFile(distPath, data);
+    } catch {
+      // Ignore if dist/public doesn't exist yet
+    }
+
+    return { key, url: `/manus-storage/${key}` };
+  }
+
+  const { forgeUrl, forgeKey } = config;
 
   // 1. Get presigned PUT URL from Forge
   const presignUrl = new URL("v1/storage/presign/put", forgeUrl + "/");
@@ -77,8 +155,15 @@ export async function storageGet(relKey: string): Promise<{ key: string; url: st
 }
 
 export async function storageGetSignedUrl(relKey: string): Promise<string> {
-  const { forgeUrl, forgeKey } = getForgeConfig();
+  const config = getForgeConfig();
   const key = normalizeKey(relKey);
+
+  if (!config) {
+    // Local fallback mode: return direct path
+    return `/manus-storage/${key}`;
+  }
+
+  const { forgeUrl, forgeKey } = config;
 
   const getUrl = new URL("v1/storage/presign/get", forgeUrl + "/");
   getUrl.searchParams.set("path", key);
@@ -95,3 +180,4 @@ export async function storageGetSignedUrl(relKey: string): Promise<string> {
   const { url } = (await resp.json()) as { url: string };
   return url;
 }
+
